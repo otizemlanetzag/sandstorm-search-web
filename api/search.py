@@ -28,6 +28,7 @@ class handler(BaseHTTPRequestHandler):
         parsed_url = urlparse(self.path)
         query_params = parse_qs(parsed_url.query)
         
+        # 1. נתיב הסטטוס
         if parsed_url.path == '/api/status':
             data = get_data_from_cloud()
             self.send_response(200)
@@ -38,10 +39,12 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"total_crawled": len(data)}).encode())
             return
             
+        # 2. נתיב החיפוש
         elif parsed_url.path == '/api/search':
-            # שליפת מילת החיפוש מהפרמטר q
+            # תיקון קריטי 1: שליפת האיבר הראשון מתוך רשימת הפרמטרים של Vercel
             query_list = query_params.get('q', [''])
-            query = query_list[0].strip().lower() if query_list else ''
+            raw_query = query_list[0] if query_list else ''
+            query = raw_query.strip().lower()
             
             if not query:
                 response_data = {"results": [], "total_crawled": 0}
@@ -51,7 +54,7 @@ class handler(BaseHTTPRequestHandler):
                 search_results = []
                 
                 for url, site_info in data.items():
-                    # בדיקה יציבה: תמיכה בפורמט הישן (מחרוזת) ובפורמט החדש (מילון)
+                    # תאימות מלאה לשני הפורמטים (הישן והחדש) של הזחלנים
                     if isinstance(site_info, str):
                         title = url
                         content = site_info
@@ -65,7 +68,7 @@ class handler(BaseHTTPRequestHandler):
                     if all(word in content_lower for word in query_words):
                         total_matches = sum(content_lower.count(word) for word in query_words)
                         
-                        # הפקת תקציר טקסט בטוחה ללא קריסות
+                        # תיקון קריטי 2: שליפת המילה הראשונה כמחרוזת לצורך חיפוש מיקום ה-Snippet
                         first_word = query_words[0] if query_words else ""
                         start_idx = content_lower.find(first_word)
                         

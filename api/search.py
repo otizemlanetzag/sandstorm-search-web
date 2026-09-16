@@ -1,70 +1,32 @@
-<!-- החלף רק את חלק ה-JavaScript בתוך קובץ ה-HTML שלך, או את כולו -->
-<script>
-    function updateStatusLoop() {
-        fetch('/api/status')
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('status-text').innerText = `האינפיניטי סרק עד כה ${data.total_crawled} אתרים זמינים בענן.`;
-            })
-            .catch(() => {});
-        setTimeout(updateStatusLoop, 3000);
-    }
-    updateStatusLoop();
-
-    document.getElementById('search-input').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') triggerSearch();
-    });
-
-    function escapeAndHighlight(text, query) {
-        let dummy = document.createElement('div');
-        dummy.textContent = text;
-        let safeText = dummy.innerHTML;
-
-        if (!query) return safeText;
-        const words = query.split(/\s+/).filter(w => w.length > 0);
+    for url, site_info in data.items():
+        # תמיכה בשני הפורמטים (טקסט פשוט או אובייקט עם כותרת)
+        if isinstance(site_info, str):
+            title = url
+            content = site_info
+        else:
+            title = site_info.get("title", url)
+            content = site_info.get("content", "")
+            
+        content_lower = content.lower()
         
-        words.forEach(word => {
-            const safeWord = word.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-            const regex = new RegExp(`(${safeWord})`, 'gi');
-            safeText = safeText.replace(regex, '<span class="highlight">$1</span>');
-        });
-        
-        return safeText;
-    }
-
-    function triggerSearch() {
-        const query = document.getElementById('search-input').value.trim();
-        if (!query) return;
-
-        const container = document.getElementById('results-container');
-        container.innerHTML = '<div class="no-results">מנתח נתונים מוצפנים...</div>';
-
-        fetch(`/api/search?q=${encodeURIComponent(query)}`)
-            .then(res => res.json())
-            .then(data => {
-                container.innerHTML = '';
+        # בדיקה שכל מילות החיפוש קיימות בדף
+        if all(word in content_lower for word in query_words):
+            total_matches = sum(content_lower.count(word) for word in query_words)
+            
+            # תיקון קריטי: לוקחים את המילה הראשונה מתוך הרשימה ומחפשים את המיקום שלה
+            first_word = query_words[0] if query_words else ""
+            start_idx = content_lower.find(first_word)
+            
+            if start_idx != -1:
+                start = max(0, start_idx - 40)
+                end = min(len(content), start_idx + 150)
+                snippet = content[start:end]
+            else:
+                snippet = content[:150]
                 
-                if (data.results.length === 0) {
-                    container.innerHTML = '<div class="no-results">🏜️ סופת החול לא מצאה התאמות לביטוי המבוקש.</div>';
-                    return;
-                }
-
-                data.results.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'result-item';
-                    
-                    // אבטחה והדגשה לכותרת ולתקציר הטקסט
-                    const secureTitle = escapeAndHighlight(item.title, query);
-                    const secureSnippet = escapeAndHighlight(item.snippet, query);
-
-                    // הצגת כותרת האתר כלינק ראשי, וכתובת ה-URL מתחתיה בגוון אדמה קטן
-                    div.innerHTML = `
-                        <a class="result-url" href="${item.url}" target="_blank" rel="noopener noreferrer">${secureTitle}</a>
-                        <div class="result-meta" style="font-size: 0.8rem; color: #8c7355; margin-top: 2px;">🔗 ${item.url} • מופעים בדף: <strong>${item.score}</strong></div>
-                        <div class="result-snippet" style="margin-top: 6px;">${secureSnippet}</div>
-                    `;
-                    container.appendChild(div);
-                });
-            });
-    }
-</script>
+            search_results.append({
+                "url": url,
+                "title": title,
+                "score": total_matches,
+                "snippet": snippet
+            })

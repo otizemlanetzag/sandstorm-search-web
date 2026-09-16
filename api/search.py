@@ -1,84 +1,70 @@
-import os
-import json
-from http.server import BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
-import boto3
-from botocore.config import Config
+<!-- החלף רק את חלק ה-JavaScript בתוך קובץ ה-HTML שלך, או את כולו -->
+<script>
+    function updateStatusLoop() {
+        fetch('/api/status')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('status-text').innerText = `האינפיניטי סרק עד כה ${data.total_crawled} אתרים זמינים בענן.`;
+            })
+            .catch(() => {});
+        setTimeout(updateStatusLoop, 3000);
+    }
+    updateStatusLoop();
 
-s3_client = boto3.client(
-    service_name="s3",
-    endpoint_url=os.environ.get("B2_ENDPOINT_URL"),
-    aws_access_key_id=os.environ.get("B2_ACCESS_KEY"),
-    aws_secret_access_key=os.environ.get("B2_SECRET_KEY"),
-    config=Config(signature_version="s3v4")
-)
+    document.getElementById('search-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') triggerSearch();
+    });
 
-def get_data_from_cloud():
-    try:
-        response = s3_client.get_object(
-            Bucket=os.environ.get("BUCKET_NAME"), 
-            Key=os.environ.get("OBJECT_NAME")
-        )
-        return json.loads(response['Body'].read().decode('utf-8'))
-    except Exception:
-        return {}
+    function escapeAndHighlight(text, query) {
+        let dummy = document.createElement('div');
+        dummy.textContent = text;
+        let safeText = dummy.innerHTML;
 
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        parsed_url = urlparse(self.path)
-        query_params = parse_qs(parsed_url.query)
+        if (!query) return safeText;
+        const words = query.split(/\s+/).filter(w => w.length > 0);
         
-        if parsed_url.path == '/api/status':
-            data = get_data_from_cloud()
-            self.send_response(200)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('X-Frame-Options', 'DENY')
-            self.send_header('Referrer-Policy', 'no-referrer')
-            self.end_headers()
-            self.wfile.write(json.dumps({"total_crawled": len(data)}).encode())
-            return
-            
-        elif parsed_url.path == '/api/search':
-            query = query_params.get('q', [''])[0].strip().lower()
-            if not query:
-                response_data = {"results": [], "total_crawled": 0}
-            else:
-                query_words = [word for word in query.split() if word]
-                data = get_data_from_cloud()
-                search_results = []
+        words.forEach(word => {
+            const safeWord = word.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            const regex = new RegExp(`(${safeWord})`, 'gi');
+            safeText = safeText.replace(regex, '<span class="highlight">$1</span>');
+        });
+        
+        return safeText;
+    }
+
+    function triggerSearch() {
+        const query = document.getElementById('search-input').value.trim();
+        if (!query) return;
+
+        const container = document.getElementById('results-container');
+        container.innerHTML = '<div class="no-results">מנתח נתונים מוצפנים...</div>';
+
+        fetch(`/api/search?q=${encodeURIComponent(query)}`)
+            .then(res => res.json())
+            .then(data => {
+                container.innerHTML = '';
                 
-                for url, content in data.items():
-                    content_lower = content.lower()
-                    if all(word in content_lower for word in query_words):
-                        total_matches = sum(content_lower.count(word) for word in query_words)
-                        
-                        snippet = ""
-                        start_idx = content_lower.find(query_words[0])
-                        if start_idx != -1:
-                            start = max(0, start_idx - 40)
-                            end = min(len(content), start_idx + 150)
-                            snippet = content[start:end]
-                        else:
-                            snippet = content[:150]
-                            
-                        search_results.append({
-                            "url": url,
-                            "score": total_matches,
-                            "snippet": snippet
-                        })
-                        
-                search_results.sort(key=lambda x: x["score"], reverse=True)
-                response_data = {"results": search_results, "total_crawled": len(data)}
+                if (data.results.length === 0) {
+                    container.innerHTML = '<div class="no-results">🏜️ סופת החול לא מצאה התאמות לביטוי המבוקש.</div>';
+                    return;
+                }
 
-            self.send_response(200)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('X-Frame-Options', 'DENY')
-            self.send_header('Referrer-Policy', 'no-referrer')
-            self.send_header('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:;")
-            self.end_headers()
-            self.wfile.write(json.dumps(response_data).encode())
-            return
+                data.results.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'result-item';
+                    
+                    // אבטחה והדגשה לכותרת ולתקציר הטקסט
+                    const secureTitle = escapeAndHighlight(item.title, query);
+                    const secureSnippet = escapeAndHighlight(item.snippet, query);
 
-        self.send_response(404)
-        self.end_headers()
-
+                    // הצגת כותרת האתר כלינק ראשי, וכתובת ה-URL מתחתיה בגוון אדמה קטן
+                    div.innerHTML = `
+                        <a class="result-url" href="${item.url}" target="_blank" rel="noopener noreferrer">${secureTitle}</a>
+                        <div class="result-meta" style="font-size: 0.8rem; color: #8c7355; margin-top: 2px;">🔗 ${item.url} • מופעים בדף: <strong>${item.score}</strong></div>
+                        <div class="result-snippet" style="margin-top: 6px;">${secureSnippet}</div>
+                    `;
+                    container.appendChild(div);
+                });
+            });
+    }
+</script>

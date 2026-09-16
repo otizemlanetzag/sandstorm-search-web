@@ -155,6 +155,7 @@
 </div>
 
 <script>
+    // לולאת עדכון כמות אתרים
     function updateStatusLoop() {
         fetch('/api/status')
             .then(res => res.json())
@@ -166,8 +167,20 @@
     }
     updateStatusLoop();
 
+    // בדיקה האם המשתמש נכנס עם פרמטר q בכתובת ה-URL מיד כשהעמוד נטען (Deep Linking)
+    window.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const queryFromUrl = urlParams.get('q');
+        
+        if (queryFromUrl) {
+            // הזרקת המילה לתיבת החיפוש והרצת החיפוש אוטומטית
+            document.getElementById('search-input').value = queryFromUrl;
+            triggerSearch(false); // מעבירים false כדי שלא יעדכן את הכתובת בלולאה אינסופית
+        }
+    });
+
     document.getElementById('search-input').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') triggerSearch();
+        if (e.key === 'Enter') triggerSearch(true);
     });
 
     function escapeAndHighlight(text, query) {
@@ -187,9 +200,16 @@
         return safeText;
     }
 
-    function triggerSearch() {
+    // פונקציית החיפוש המרכזית
+    function triggerSearch(updateUrl = true) {
         const query = document.getElementById('search-input').value.trim();
         if (!query) return;
+
+        // עדכון ה-URL בדפדפן בלי לרענן את העמוד (History API)
+        if (updateUrl) {
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?q=' + encodeURIComponent(query);
+            window.history.pushState({ path: newUrl }, '', newUrl);
+        }
 
         const container = document.getElementById('results-container');
         container.innerHTML = '<div class="no-results">מנתח נתונים מוצפנים...</div>';
@@ -207,12 +227,13 @@
                 data.results.forEach(item => {
                     const div = document.createElement('div');
                     div.className = 'result-item';
+                    const secureTitle = escapeAndHighlight(item.title, query);
                     const secureSnippet = escapeAndHighlight(item.snippet, query);
 
                     div.innerHTML = `
-                        <a class="result-url" href="${item.url}" target="_blank" rel="noopener noreferrer">🔗 ${item.url}</a>
-                        <div class="result-meta">📊 מופעים בדף: <strong>${item.score}</strong></div>
-                        <div class="result-snippet">${secureSnippet}</div>
+                        <a class="result-url" href="${item.url}" target="_blank" rel="noopener noreferrer">${secureTitle}</a>
+                        <div class="result-meta" style="font-size: 0.8rem; color: #8c7355; margin-top: 2px;">🔗 ${item.url} • מופעים בדף: <strong>${item.score}</strong></div>
+                        <div class="result-snippet" style="margin-top: 6px;">${secureSnippet}</div>
                     `;
                     container.appendChild(div);
                 });
@@ -222,4 +243,3 @@
 
 </body>
 </html>
-

@@ -148,14 +148,13 @@
 
     <div class="search-box">
         <input type="text" id="search-input" placeholder="הקש ביטוי לחיפוש חסוי במדבר המידע..." autofocus>
-        <button onclick="triggerSearch()">חפש</button>
+        <button onclick="triggerSearch(true)">חפש</button>
     </div>
 
     <div id="results-container"></div>
 </div>
 
 <script>
-    // לולאת עדכון כמות אתרים
     function updateStatusLoop() {
         fetch('/api/status')
             .then(res => res.json())
@@ -167,15 +166,14 @@
     }
     updateStatusLoop();
 
-    // בדיקה האם המשתמש נכנס עם פרמטר q בכתובת ה-URL מיד כשהעמוד נטען (Deep Linking)
+    // קריאת ביטוי ה-q מהכתובת בריצה ראשונית
     window.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const queryFromUrl = urlParams.get('q');
         
         if (queryFromUrl) {
-            // הזרקת המילה לתיבת החיפוש והרצת החיפוש אוטומטית
             document.getElementById('search-input').value = queryFromUrl;
-            triggerSearch(false); // מעבירים false כדי שלא יעדכן את הכתובת בלולאה אינסופית
+            triggerSearch(false); 
         }
     });
 
@@ -200,12 +198,10 @@
         return safeText;
     }
 
-    // פונקציית החיפוש המרכזית
     function triggerSearch(updateUrl = true) {
         const query = document.getElementById('search-input').value.trim();
         if (!query) return;
 
-        // עדכון ה-URL בדפדפן בלי לרענן את העמוד (History API)
         if (updateUrl) {
             const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?q=' + encodeURIComponent(query);
             window.history.pushState({ path: newUrl }, '', newUrl);
@@ -219,7 +215,7 @@
             .then(data => {
                 container.innerHTML = '';
                 
-                if (data.results.length === 0) {
+                if (!data.results || data.results.length === 0) {
                     container.innerHTML = '<div class="no-results">🏜️ סופת החול לא מצאה התאמות לביטוי המבוקש.</div>';
                     return;
                 }
@@ -227,7 +223,7 @@
                 data.results.forEach(item => {
                     const div = document.createElement('div');
                     div.className = 'result-item';
-                    const secureTitle = escapeAndHighlight(item.title, query);
+                    const secureTitle = escapeAndHighlight(item.title || item.url, query);
                     const secureSnippet = escapeAndHighlight(item.snippet, query);
 
                     div.innerHTML = `
@@ -237,6 +233,10 @@
                     `;
                     container.appendChild(div);
                 });
+            })
+            .catch(err => {
+                container.innerHTML = '<div class="no-results">❌ שגיאה בתקשורת מול שרת ה-API.</div>';
+                console.error(err);
             });
     }
 </script>

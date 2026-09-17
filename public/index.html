@@ -1,3 +1,159 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinity Sandstorm Search</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5ece1;
+            margin: 0;
+            padding: 20px;
+            color: #4a3b32;
+        }
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            background: #fcf8f2;
+            padding: 35px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(139, 115, 85, 0.15);
+            border: 1px solid #e3d1be;
+        }
+        .brand-section {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .logo-img {
+            width: 160px;
+            height: auto;
+            margin-bottom: 15px;
+            border-radius: 50%;
+            box-shadow: 0 6px 15px rgba(139, 115, 85, 0.2);
+        }
+        h1 {
+            color: #c08a3e;
+            margin: 0;
+            font-size: 2.2rem;
+        }
+        .subtitle {
+            font-size: 0.85rem;
+            color: #8c7355;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 5px;
+        }
+        .status {
+            text-align: center;
+            font-style: italic;
+            color: #a08568;
+            font-size: 0.9rem;
+            margin-bottom: 25px;
+        }
+        .privacy-badge {
+            display: inline-block;
+            background-color: #e6d5c3;
+            color: #6e563b;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .search-box {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+        input {
+            flex: 1;
+            padding: 14px 22px;
+            font-size: 1.05rem;
+            border: 2px solid #dcc7b1;
+            border-radius: 10px;
+            outline: none;
+            background-color: #fffcf9;
+            color: #4a3b32;
+            transition: all 0.3s;
+        }
+        input:focus {
+            border-color: #c08a3e;
+            box-shadow: 0 0 8px rgba(192, 138, 62, 0.2);
+        }
+        button {
+            padding: 14px 30px;
+            font-size: 1.05rem;
+            background-color: #c08a3e;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #a6732e;
+        }
+        .result-item {
+            border-bottom: 1px solid #ebdccb;
+            padding: 22px 0;
+        }
+        .result-url {
+            font-size: 1.15rem;
+            color: #a6732e;
+            text-decoration: none;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .result-url:hover {
+            text-decoration: underline;
+        }
+        .result-meta {
+            font-size: 0.85rem;
+            color: #8c7355;
+            margin: 6px 0;
+        }
+        .result-snippet {
+            font-size: 0.95rem;
+            color: #5c4a3c;
+            line-height: 1.6;
+        }
+        .highlight {
+            background-color: #f7e1c1;
+            color: #8c5b1b;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .no-results {
+            text-align: center;
+            color: #8c7355;
+            margin-top: 40px;
+            font-size: 1.05rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="brand-section">
+        <img src="logo.png" alt="Infinity Sandstorm Logo" class="logo-img" onerror="this.src='https://placeholder.com'">
+        <h1>⏳ Infinity Sandstorm Search</h1>
+        <div class="subtitle">Sandstorm Search Engine</div>
+        <div class="privacy-badge">🔒 מוגן ברמת פרטיות מקסימלית (No-Tracking)</div>
+    </div>
+    
+    <div class="status" id="status-text">מתחבר למאגר המבוזר...</div>
+
+    <div class="search-box">
+        <input type="text" id="search-input" placeholder="הקש ביטוי לחיפוש חסוי במדבר המידע..." autofocus>
+        <button onclick="triggerSearch(true)">חפש</button>
+    </div>
+
+    <div id="results-container"></div>
+</div>
+
 <script>
     function updateStatusLoop() {
         fetch('/api/status')
@@ -10,14 +166,13 @@
     }
     updateStatusLoop();
 
-    // בדיקה והפעלה אוטומטית של ביטוי q מה-URL בעת טעינת העמוד
     window.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const queryFromUrl = urlParams.get('q');
         
         if (queryFromUrl) {
             document.getElementById('search-input').value = queryFromUrl;
-            triggerSearch(false); // הפעלה ללא עדכון חוזר של ה-URL למניעת לולאה
+            triggerSearch(false); 
         }
     });
 
@@ -34,9 +189,9 @@
         const words = query.split(/\s+/).filter(w => w.length > 0);
         
         words.forEach(word => {
-            const safeWord = word.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            const safeWord = word.replace(/[-\/\\^\$*+?.()|[\]{}]/g, '\\$&');
             const regex = new RegExp(`(${safeWord})`, 'gi');
-            safeText = safeText.replace(regex, '<span class="highlight">$1</span>');
+            safeText = safeText.replace(regex, '<span class="highlight">\$1</span>');
         });
         
         return safeText;
@@ -46,7 +201,6 @@
         const query = document.getElementById('search-input').value.trim();
         if (!query) return;
 
-        // עדכון ה-URL בדפדפן רק אם החיפוש בוצע ידנית על ידי המשתמש
         if (updateUrl) {
             const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?q=' + encodeURIComponent(query);
             window.history.pushState({ path: newUrl }, '', newUrl);
@@ -69,7 +223,14 @@
                     const div = document.createElement('div');
                     div.className = 'result-item';
                     
-                    const secureTitle = escapeAndHighlight(item.title || item.url, query);
+                    // אקשן חילוץ כותרת דינמית מה-HTML: לוקחים את 8 המילים הראשונות של האתר ככותרת
+                    let words = item.content.split(/\s+/);
+                    let computedTitle = words.slice(0, 8).join(" ") + "...";
+                    if (!item.content || item.content.trim() === "") {
+                        computedTitle = item.url;
+                    }
+                    
+                    const secureTitle = escapeAndHighlight(computedTitle, query);
                     const secureSnippet = escapeAndHighlight(item.snippet || "", query);
 
                     div.innerHTML = `
@@ -81,8 +242,11 @@
                 });
             })
             .catch(err => {
-                container.innerHTML = '<div class="no-results">❌ שגיאה בתקשורת מול שרת ה-API.</div>';
+                container.innerHTML = '<div class="no-results">❌ שגיאה בתקשורת מול השרת.</div>';
                 console.error(err);
             });
     }
 </script>
+
+</body>
+</html>

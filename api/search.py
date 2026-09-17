@@ -32,13 +32,14 @@ class handler(BaseHTTPRequestHandler):
             data = get_data_from_cloud()
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*') # פותר בעיות CORS
+            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps({"total_crawled": len(data)}).encode())
             return
             
         elif parsed_url.path == '/api/search':
             query_list = query_params.get('q', [''])
+            # שליפה נכונה של המחרוזת מתוך הרשימה של Vercel
             query = query_list[0].strip().lower() if query_list else ''
             
             if not query:
@@ -49,20 +50,23 @@ class handler(BaseHTTPRequestHandler):
                 search_results = []
                 
                 for url, site_info in data.items():
-                    # תמיכה בטקסט פשוט בלבד - חזרה למקור הבטוח
+                    # בדיקה יציבה: תמיכה במילון או במחרוזת טקסט רגילה
                     if isinstance(site_info, dict):
                         content = site_info.get("content", "")
                     else:
                         content = str(site_info)
                         
                     content_lower = content.lower()
+                    
+                    # בדיקה שכל מילות החיפוש מופיעות בטקסט
                     if all(word in content_lower for word in query_words):
                         total_matches = sum(content_lower.count(word) for word in query_words)
                         
-                        # הפקת סניפט מהירה וחסינה
+                        # יצירת סניפט (תקציר) יציב ללא קריסות שרת
                         snippet = content[:200] + "..."
                         if query_words:
-                            start_idx = content_lower.find(query_words[0])
+                            first_word = query_words[0]
+                            start_idx = content_lower.find(first_word)
                             if start_idx != -1:
                                 start = max(0, start_idx - 40)
                                 end = min(len(content), start_idx + 160)
@@ -80,7 +84,7 @@ class handler(BaseHTTPRequestHandler):
 
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*') # פותר בעיות CORS
+            self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('X-Frame-Options', 'DENY')
             self.send_header('Referrer-Policy', 'no-referrer')
             self.end_headers()

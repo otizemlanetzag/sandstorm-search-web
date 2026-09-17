@@ -39,8 +39,8 @@ class handler(BaseHTTPRequestHandler):
             
         elif parsed_url.path == '/api/search':
             query_list = query_params.get('q', [''])
-            # שליפה נכונה של המחרוזת מתוך הרשימה של Vercel
-            query = query_list[0].strip().lower() if query_list else ''
+            raw_query = query_list[0] if query_list else ''
+            query = raw_query.strip().lower()
             
             if not query:
                 response_data = {"results": [], "total_crawled": 0}
@@ -50,7 +50,7 @@ class handler(BaseHTTPRequestHandler):
                 search_results = []
                 
                 for url, site_info in data.items():
-                    # בדיקה יציבה: תמיכה במילון או במחרוזת טקסט רגילה
+                    # שליפת הטקסט בהתאם למבנה האובייקט החדש של הזחלן
                     if isinstance(site_info, dict):
                         content = site_info.get("content", "")
                     else:
@@ -58,11 +58,10 @@ class handler(BaseHTTPRequestHandler):
                         
                     content_lower = content.lower()
                     
-                    # בדיקה שכל מילות החיפוש מופיעות בטקסט
                     if all(word in content_lower for word in query_words):
                         total_matches = sum(content_lower.count(word) for word in query_words)
                         
-                        # יצירת סניפט (תקציר) יציב ללא קריסות שרת
+                        # הפקת סניפט בטוחה ללא קריסות
                         snippet = content[:200] + "..."
                         if query_words:
                             first_word = query_words[0]

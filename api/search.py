@@ -39,7 +39,13 @@ class handler(BaseHTTPRequestHandler):
             
         elif parsed_url.path == '/api/search':
             query_list = query_params.get('q', [''])
-            raw_query = query_list[0] if query_list else ''
+            
+            # תיקון קריטי: שליפה בטוחה של האיבר הראשון מתוך הרשימה ומניעת קריסת strip
+            if isinstance(query_list, list) and len(query_list) > 0:
+                raw_query = query_list[0]
+            else:
+                raw_query = str(query_list)
+                
             query = raw_query.strip().lower()
             
             if not query:
@@ -50,7 +56,7 @@ class handler(BaseHTTPRequestHandler):
                 search_results = []
                 
                 for url, site_info in data.items():
-                    # שליפת הטקסט בהתאם למבנה האובייקט החדש של הזחלן
+                    # תאימות מלאה: תומך גם בפורמט הישן (סטרינג) וגם בחדש (דיקשנרי)
                     if isinstance(site_info, dict):
                         content = site_info.get("content", "")
                     else:
@@ -61,7 +67,6 @@ class handler(BaseHTTPRequestHandler):
                     if all(word in content_lower for word in query_words):
                         total_matches = sum(content_lower.count(word) for word in query_words)
                         
-                        # הפקת סניפט בטוחה ללא קריסות
                         snippet = content[:200] + "..."
                         if query_words:
                             first_word = query_words[0]

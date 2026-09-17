@@ -28,6 +28,7 @@ class handler(BaseHTTPRequestHandler):
         parsed_url = urlparse(self.path)
         query_params = parse_qs(parsed_url.query)
         
+        # נתיב הסטטוס
         if parsed_url.path == '/api/status':
             data = get_data_from_cloud()
             self.send_response(200)
@@ -37,10 +38,11 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"total_crawled": len(data)}).encode())
             return
             
+        # נתיב החיפוש המרכזי
         elif parsed_url.path == '/api/search':
             query_list = query_params.get('q', [''])
             
-            # תיקון קריטי: שליפה בטוחה של האיבר הראשון מתוך הרשימה ומניעת קריסת strip
+            # 🎯 התיקון הקריטי: חילוץ האיבר הראשון (הטקסט) מתוך הרשימה של Vercel
             if isinstance(query_list, list) and len(query_list) > 0:
                 raw_query = query_list[0]
             else:
@@ -56,7 +58,7 @@ class handler(BaseHTTPRequestHandler):
                 search_results = []
                 
                 for url, site_info in data.items():
-                    # תאימות מלאה: תומך גם בפורמט הישן (סטרינג) וגם בחדש (דיקשנרי)
+                    # תאימות מלאה לכל הפורמטים (טקסט נקי או מילון אובייקט)
                     if isinstance(site_info, dict):
                         content = site_info.get("content", "")
                     else:
@@ -67,6 +69,7 @@ class handler(BaseHTTPRequestHandler):
                     if all(word in content_lower for word in query_words):
                         total_matches = sum(content_lower.count(word) for word in query_words)
                         
+                        # הפקת סניפט בטוחה ללא קריסות שרת
                         snippet = content[:200] + "..."
                         if query_words:
                             first_word = query_words[0]

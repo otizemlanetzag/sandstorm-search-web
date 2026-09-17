@@ -157,18 +157,18 @@
 <script>
     function updateStatusLoop() {
         fetch('/api/status')
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('status-text').innerText = `האינפיניטי סרק עד כה ${data.total_crawled} אתרים זמינים בענן.`;
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                document.getElementById('status-text').innerText = 'האינפיניטי סרק עד כה ' + data.total_crawled + ' אתרים זמינים בענן.';
             })
-            .catch(() => {});
+            .catch(function() {});
         setTimeout(updateStatusLoop, 3000);
     }
     updateStatusLoop();
 
-    window.addEventListener('DOMContentLoaded', () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const queryFromUrl = urlParams.get('q');
+    window.addEventListener('DOMContentLoaded', function() {
+        var urlParams = new URLSearchParams(window.location.search);
+        var queryFromUrl = urlParams.get('q');
         
         if (queryFromUrl) {
             document.getElementById('search-input').value = queryFromUrl;
@@ -181,39 +181,40 @@
     });
 
     function escapeAndHighlight(text, query) {
-        let dummy = document.createElement('div');
+        var dummy = document.createElement('div');
         dummy.textContent = text;
-        let safeText = dummy.innerHTML;
+        var safeText = dummy.innerHTML;
 
         if (!query) return safeText;
-        const words = query.split(/\s+/).filter(w => w.length > 0);
+        var words = query.split(/\s+/).filter(function(w) { return w.length > 0; });
         
-        words.forEach(word => {
-            const safeWord = word.replace(/[-\/\\^\$*+?.()|[\]{}]/g, '\\$&');
-            const regex = new RegExp(`(${safeWord})`, 'gi');
-            safeText = safeText.replace(regex, '<span class="highlight">\$1</span>');
+        words.forEach(function(word) {
+            var safeWord = word.replace(/[-\/\\^\$*+?.()|[\]{}]/g, '\\$&');
+            var regex = new RegExp('(' + safeWord + ')', 'gi');
+            safeText = safeText.replace(regex, '<span class="highlight">$1</span>');
         });
         
         return safeText;
     }
 
-    function triggerSearch(updateUrl = true) {
-        const query = document.getElementById('search-input').value.trim();
+    function triggerSearch(updateUrl) {
+        if (updateUrl === undefined) updateUrl = true;
+        var query = document.getElementById('search-input').value.trim();
         if (!query) return;
 
         if (updateUrl) {
-            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?q=' + encodeURIComponent(query);
+            var newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?q=' + encodeURIComponent(query);
             window.history.pushState({ path: newUrl }, '', newUrl);
         }
 
-        const container = document.getElementById('results-container');
+        var container = document.getElementById('results-container');
         container.innerHTML = '<div class="no-results">מנתח נתונים מוצפנים...</div>';
 
-        const lowercaseQuery = query.toLowerCase();
+        var lowercaseQuery = query.toLowerCase();
 
         fetch('/api/search?q=' + encodeURIComponent(lowercaseQuery))
-            .then(res => res.json())
-            .then(data => {
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
                 container.innerHTML = '';
                 
                 if (!data.results || data.results.length === 0) {
@@ -221,26 +222,29 @@
                     return;
                 }
 
-                data.results.forEach(item => {
-                    const div = document.createElement('div');
+                data.results.forEach(function(item) {
+                    var div = document.createElement('div');
                     div.className = 'result-item';
                     
-                    let words = item.content.split(/\s+/);
-                    let computedTitle = words.slice(0, 8).join(" ") + "...";
+                    var words = item.content.split(/\s+/);
+                    var computedTitle = words.slice(0, 8).join(" ") + "...";
                     if (!item.content || item.content.trim() === "") {
                         computedTitle = item.url;
                     }
                     
-                    const secureTitle = escapeAndHighlight(computedTitle, query);
-                    const secureSnippet = escapeAndHighlight(item.snippet || "", query);
+                    var secureTitle = escapeAndHighlight(computedTitle, query);
+                    var secureSnippet = escapeAndHighlight(item.snippet || "", query);
 
-                    div.innerHTML = '<a class="result-url" href="' + item.url + '" target="_blank" rel="noopener noreferrer">' + secureTitle + '</a>' +
-                                    '<div class="result-meta" style="font-size: 0.8rem; color: #8c7355; margin-top: 2px;">🔗 ' + item.url + ' • מופעים בדף: <strong>' + item.score + '</strong></div>' +
-                                    '<div class="result-snippet" style="margin-top: 6px;">' + secureSnippet + '</div>';
+                    var htmlContent = '';
+                    htmlContent += '<a class="result-url" href="' + item.url + '" target="_blank" rel="noopener noreferrer">' + secureTitle + '</a>';
+                    htmlContent += '<div class="result-meta" style="font-size: 0.8rem; color: #8c7355; margin-top: 2px;">🔗 ' + item.url + ' • מופעים בדף: <strong>' + item.score + '</strong></div>';
+                    htmlContent += '<div class="result-snippet" style="margin-top: 6px;">' + secureSnippet + '</div>';
+                    
+                    div.innerHTML = htmlContent;
                     container.appendChild(div);
                 });
             })
-            .catch(err => {
+            .catch(function(err) {
                 container.innerHTML = '<div class="no-results">❌ שגיאה בתקשורת מול השרת.</div>';
                 console.error(err);
             });
